@@ -3,10 +3,12 @@ package gosa
 import (
 	"bufio"
 	"fmt"
+	"github.com/jessehorne/go-simplex/pkg/v1/commands"
 	"io"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 )
 
@@ -20,7 +22,6 @@ type Client struct {
 	commandTimeout      int // seconds to wait for each command to process
 	ready               bool
 	running             bool
-	commandQueue        []string
 
 	callbacks map[string]interface{}
 }
@@ -60,16 +61,39 @@ func (c *Client) On(cb string, f interface{}) {
 	c.callbacks[cb] = f
 }
 
-func (c *Client) callback(name string, data interface{}) {
+func (c *Client) callback(name string, data commands.Command) {
 	cb, ok := c.callbacks[name]
 	if ok {
-		if name == "connection" {
+		if name == "agent-connection" {
 			cb.(func())()
 		} else if name == "close" {
 			cb.(func())()
-		} else if name == "cmd" {
-			cb.(func(Command))(data.(Command))
+		} else if name == "a-cmd-new" {
+			cb.(func(string))("unsupported")
+		} else if name == "a-cmd-conf" {
+			cb.(func(commands.CommandConf))(data.(commands.CommandConf))
+		} else if name == "a-cmd-inv" {
+			cb.(func(commands.CommandInv))(data.(commands.CommandInv))
 		}
+	}
+}
+
+func (c *Client) OnCommand(s []string) {
+	// parse command string into command
+	cmd := commands.ToCommand(s)
+
+	if cmd == nil {
+		fmt.Println("NULL: ", fmt.Sprintf("%s\n%s\n%s\n", s[0], s[1], s[2]))
+		return
+	}
+
+	// call low level agent callback
+	if cmd.GetType() == commands.CommandTypeNew {
+		c.callback("a-cmd-new", cmd)
+	} else if cmd.GetType() == commands.CommandTypeConf {
+		c.callback("a-cmd-conf", cmd)
+	} else if cmd.GetType() == commands.CommandTypeInv {
+		c.callback("a-cmd-inv", cmd)
 	}
 }
 
@@ -77,8 +101,23 @@ func (c *Client) Run() error {
 	// get messages in a goroutine
 	go func() {
 		s := bufio.NewScanner(c.reader)
+
+		count := 0 // count lines
+		var commandBuffer []string
 		for s.Scan() {
-			c.onMessage(s.Text())
+			if !c.ready {
+				c.onMessage(s.Text())
+			} else {
+				commandBuffer = append(commandBuffer, strings.TrimSuffix(s.Text(), "\r"))
+
+				count += 1
+
+				if count > 2 {
+					c.OnCommand(commandBuffer)
+					count = 0
+					commandBuffer = []string{}
+				}
+			}
 		}
 	}()
 
@@ -97,19 +136,7 @@ func (c *Client) Run() error {
 	}
 
 	// connection was made if Start doesn't return an error
-	c.callback("connection", nil)
-
-	// run commands as they enter the queue, in order.
-	// (we don't run commands instantly...)
-	go func(c *Client) {
-		for {
-			if len(c.commandQueue) > 0 {
-				var cmd string
-				cmd, c.commandQueue = c.commandQueue[0], c.commandQueue[1:]
-				c.writer.Write([]byte(cmd))
-			}
-		}
-	}(c)
+	c.callback("agent-connection", nil)
 
 	// wait and block for command to finish
 	return c.command.Wait()
@@ -120,31 +147,6 @@ func (c *Client) onMessage(data string) {
 		c.ready = true
 		return
 	}
-
-	if !c.ready {
-		return
-	}
-
-	if len(data) < 3 {
-		return
-	}
-
-	if data[:3] == "INV" {
-		uri := parseForINV(data)
-		if uri != "" {
-			//c.responseInviteLinks = append(c.responseInviteLinks, uri)
-
-			c.callback("cmd", Command{
-				Type: "INV",
-				Data: uri,
-			})
-		}
-	}
-
-}
-
-func (c *Client) send(data string) {
-	c.commandQueue = append(c.commandQueue, data)
 }
 
 func (c *Client) Close() {
@@ -154,23 +156,11 @@ func (c *Client) Close() {
 	c.reader.Close()
 }
 
-func (c *Client) NewConnection(connMode, name string) {
-	cmd := fmt.Sprintf("567\n567\nNEW T %s %s\n", connMode, name)
-	c.send(cmd)
+func (c *Client) NewConnection(corrID, connID, t string) {
+	cmd := commands.NewCommandNew(corrID, connID, t)
+	c.send(cmd.ToString())
+}
 
-	//// wait for some time to get a response
-	//waitTime := time.Now()
-	//for {
-	//	if len(c.responseInviteLinks) > 0 {
-	//		uri := c.responseInviteLinks[0]
-	//		c.responseInviteLinks = c.responseInviteLinks[1:]
-	//
-	//		return uri, nil
-	//	}
-	//
-	//	ready := time.Since(waitTime) > time.Duration(c.commandTimeout)*time.Second
-	//	if ready {
-	//		return "", errors.New("timeout")
-	//	}
-	//}
+func (c *Client) send(data string) {
+	c.writer.Write([]byte(data))
 }

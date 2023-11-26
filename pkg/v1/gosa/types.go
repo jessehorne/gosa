@@ -1,5 +1,5 @@
 package gosa
 
-var (
+const (
 	ConnModeInvite = "INV"
 )

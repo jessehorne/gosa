@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-// returns either the invitation URI or "" if there was an error
+// returns either the invitation SMPServerURI or "" if there was an error
 func parseForINV(data string) string {
 	parsed := strings.Split(data, " ")
 

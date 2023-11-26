@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/jessehorne/go-simplex/gosa"
+	"github.com/jessehorne/go-simplex/pkg/v1/commands"
+	"github.com/jessehorne/go-simplex/pkg/v1/gosa"
 	"log"
 )
 
@@ -13,32 +14,37 @@ func main() {
 		return
 	}
 
-	// Create conversation
-	//uri, err := c.NewConnection(gosa.ConnModeInvite, "subscribe")
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
-	//
-	//c.Close()
-	//
-	//fmt.Println(uri)
-
 	// when you connect to the agent server
-	c.On("connection", func() {
-		fmt.Println("connected")
+	c.On("agent-connect", func() {
+		fmt.Println("CALLBACK: agent-connect")
 	})
 
-	// when you get a command from the agent
-	c.On("cmd", func(cmd gosa.Command) {
-		fmt.Println("COMMAND: ", cmd.Type, cmd.Data)
+	// called when initial data is sent...a-cmd-new will be called for all new messages from the agent
+	c.On("agent-ready", func() {
+		fmt.Println("CALLBACK: agent-ready")
+	})
+
+	// when you get a NEW command from the agent...you shouldn't??
+	c.On("a-cmd-new", func(s string) {
+		fmt.Println("CALLBACK: a-cmd-new | COMMAND: ", s)
+	})
+
+	// when you get a CONF command from the agent...
+	c.On("a-cmd-conf", func(c commands.CommandConf) {
+		fmt.Println("CALLBACK: a-cmd-conf | COMMAND: ", c.SMPServerURI)
+	})
+
+	// when you get a INV command from the agent...
+	c.On("a-cmd-inv", func(c commands.CommandInv) {
+		fmt.Println("CALLBACK: a-cmd-inv | COMMAND: INV ", c.URI)
 	})
 
 	// run before closing down...on crash or ctrl-c
 	c.On("close", func() {
-		fmt.Println("\ncleaning up...")
+		fmt.Println("\nCALLBACK: close")
 	})
 
-	c.NewConnection(gosa.ConnModeInvite, "subscribe")
+	c.NewConnection("1", "bob", gosa.ConnModeInvite)
 
 	c.Run()
 }
