@@ -2,6 +2,7 @@ package commands
 
 const (
 	CommandTypeNew = iota
+	CommandTypeJoin
 	CommandTypeConf
 	CommandTypeInv
 	CommandTypeError

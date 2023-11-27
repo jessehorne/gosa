@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jessehorne/go-simplex/pkg/v1/commands"
 	"github.com/jessehorne/go-simplex/pkg/v1/messages"
+	"github.com/jessehorne/go-simplex/pkg/v1/structs"
 	"io"
 	"os"
 	"os/exec"
@@ -62,23 +63,6 @@ func (c *Client) On(cb string, f interface{}) {
 	c.callbacks[cb] = f
 }
 
-func (c *Client) callback(name string, data messages.Message) {
-	cb, ok := c.callbacks[name]
-	if ok {
-		if name == "agent-connection" {
-			cb.(func())()
-		} else if name == "close" {
-			cb.(func())()
-		} else if name == "a-msg-conf" {
-			cb.(func(messages.MessageConf))(data.(messages.MessageConf))
-		} else if name == "a-msg-inv" {
-			cb.(func(messages.MessageInv))(data.(messages.MessageInv))
-		} else if name == "a-msg-err" {
-			cb.(func(messages.MessageError))(data.(messages.MessageError))
-		}
-	}
-}
-
 func (c *Client) OnMessage(s []string) {
 	msg := messages.ToMessage(s)
 
@@ -105,6 +89,7 @@ func (c *Client) Run() error {
 		count := 0 // count lines
 		var messageBuffer []string
 		for s.Scan() {
+			fmt.Println(s.Text())
 			if !c.ready {
 				c.waitForReady(s.Text())
 			} else {
@@ -142,13 +127,6 @@ func (c *Client) Run() error {
 	return c.command.Wait()
 }
 
-func (c *Client) waitForReady(data string) {
-	if data == "Welcome to SMP agent v5.4.0.5" {
-		c.ready = true
-		return
-	}
-}
-
 func (c *Client) Close() {
 	c.callback("close", nil)
 
@@ -156,11 +134,41 @@ func (c *Client) Close() {
 	c.reader.Close()
 }
 
-func (c *Client) NewConnection(corrID, connID, t string) {
-	cmd := commands.NewCommandNew(corrID, connID, t)
+func (c *Client) NewConnection(corrID, connID, connType string) {
+	cmd := commands.NewCommandNew(corrID, connID, connType)
 	c.send(cmd.ToString())
+}
+
+func (c *Client) JoinConnection(corrID, connID, uri string, i structs.XInfo) {
+	cmd := commands.NewCommandJoin(corrID, connID, uri, i)
+	fmt.Println(cmd.ToString())
+	c.send(cmd.ToString())
+}
+
+func (c *Client) waitForReady(data string) {
+	if data == "Welcome to SMP agent v5.4.0.5" {
+		c.ready = true
+		return
+	}
 }
 
 func (c *Client) send(data string) {
 	c.writer.Write([]byte(data))
+}
+
+func (c *Client) callback(name string, data messages.Message) {
+	cb, ok := c.callbacks[name]
+	if ok {
+		if name == "agent-connection" {
+			cb.(func())()
+		} else if name == "close" {
+			cb.(func())()
+		} else if name == "a-msg-conf" {
+			cb.(func(messages.MessageConf))(data.(messages.MessageConf))
+		} else if name == "a-msg-inv" {
+			cb.(func(messages.MessageInv))(data.(messages.MessageInv))
+		} else if name == "a-msg-err" {
+			cb.(func(messages.MessageError))(data.(messages.MessageError))
+		}
+	}
 }
