@@ -39,6 +39,11 @@ func main() {
 		fmt.Println("CALLBACK: a-cmd-inv | COMMAND: INV ", c.URI)
 	})
 
+	// when you get a ERR command from the agent...
+	c.On("a-cmd-err", func(c commands.CommandError) {
+		fmt.Println("CALLBACK: a-cmd-err | COMMAND: ", c.First, c.Second, c.Third)
+	})
+
 	// run before closing down...on crash or ctrl-c
 	c.On("close", func() {
 		fmt.Println("\nCALLBACK: close")

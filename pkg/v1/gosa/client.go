@@ -74,6 +74,8 @@ func (c *Client) callback(name string, data commands.Command) {
 			cb.(func(commands.CommandConf))(data.(commands.CommandConf))
 		} else if name == "a-cmd-inv" {
 			cb.(func(commands.CommandInv))(data.(commands.CommandInv))
+		} else if name == "a-cmd-err" {
+			cb.(func(commands.CommandError))(data.(commands.CommandError))
 		}
 	}
 }
@@ -94,6 +96,8 @@ func (c *Client) OnCommand(s []string) {
 		c.callback("a-cmd-conf", cmd)
 	} else if cmd.GetType() == commands.CommandTypeInv {
 		c.callback("a-cmd-inv", cmd)
+	} else if cmd.GetType() == commands.CommandTypeError {
+		c.callback("a-cmd-err", cmd)
 	}
 }
 

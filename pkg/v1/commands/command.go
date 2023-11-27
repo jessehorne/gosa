@@ -4,6 +4,7 @@ const (
 	CommandTypeNew = iota
 	CommandTypeConf
 	CommandTypeInv
+	CommandTypeError
 )
 
 type Command interface {
@@ -25,6 +26,11 @@ func ToCommand(s []string) Command {
 	cmdInv, err := CommandInvParse(s)
 	if err == nil {
 		return cmdInv
+	}
+
+	cmdErr, err := CommandErrorParse(s)
+	if err == nil {
+		return cmdErr
 	}
 
 	return nil
