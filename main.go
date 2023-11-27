@@ -31,7 +31,7 @@ func main() {
 
 	// when you get a INV messages from the agent...
 	c.On("a-msg-inv", func(m messages.MessageInv) {
-		fmt.Println("CALLBACK: a-cmd-inv | MSG: INV ", m.URI)
+		fmt.Println("CALLBACK: a-cmd-inv | MSG: INV ", m.CorrID, m.ConnID, m.URI)
 	})
 
 	// when you get a ERR messages from the agent...
@@ -44,7 +44,8 @@ func main() {
 		fmt.Println("\nCALLBACK: close")
 	})
 
-	c.NewConnection("1", "bob", gosa.ConnModeInvite)
+	//c.NewConnection("1", "bob", gosa.ConnModeInvite)
+	//c.NewConnection("1", "bob", gosa.ConnModeConnection)
 
 	c.Run()
 }

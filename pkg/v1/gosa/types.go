@@ -1,5 +1,6 @@
 package gosa
 
 const (
-	ConnModeInvite = "INV"
+	ConnModeInvite     = "INV"
+	ConnModeConnection = "CON"
 )
