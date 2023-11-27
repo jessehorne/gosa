@@ -18,20 +18,5 @@ func ToCommand(s []string) Command {
 		return cmdNew
 	}
 
-	cmdConf, err := CommandConfParse(s)
-	if err == nil {
-		return cmdConf
-	}
-
-	cmdInv, err := CommandInvParse(s)
-	if err == nil {
-		return cmdInv
-	}
-
-	cmdErr, err := CommandErrorParse(s)
-	if err == nil {
-		return cmdErr
-	}
-
 	return nil
 }

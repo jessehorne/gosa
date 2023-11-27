@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/jessehorne/go-simplex/pkg/v1/commands"
+	"github.com/jessehorne/go-simplex/pkg/v1/messages"
 	"io"
 	"os"
 	"os/exec"
@@ -61,43 +62,38 @@ func (c *Client) On(cb string, f interface{}) {
 	c.callbacks[cb] = f
 }
 
-func (c *Client) callback(name string, data commands.Command) {
+func (c *Client) callback(name string, data messages.Message) {
 	cb, ok := c.callbacks[name]
 	if ok {
 		if name == "agent-connection" {
 			cb.(func())()
 		} else if name == "close" {
 			cb.(func())()
-		} else if name == "a-cmd-new" {
-			cb.(func(string))("unsupported")
-		} else if name == "a-cmd-conf" {
-			cb.(func(commands.CommandConf))(data.(commands.CommandConf))
-		} else if name == "a-cmd-inv" {
-			cb.(func(commands.CommandInv))(data.(commands.CommandInv))
-		} else if name == "a-cmd-err" {
-			cb.(func(commands.CommandError))(data.(commands.CommandError))
+		} else if name == "a-msg-conf" {
+			cb.(func(messages.MessageConf))(data.(messages.MessageConf))
+		} else if name == "a-msg-inv" {
+			cb.(func(messages.MessageInv))(data.(messages.MessageInv))
+		} else if name == "a-msg-err" {
+			cb.(func(messages.MessageError))(data.(messages.MessageError))
 		}
 	}
 }
 
-func (c *Client) OnCommand(s []string) {
-	// parse command string into command
-	cmd := commands.ToCommand(s)
+func (c *Client) OnMessage(s []string) {
+	msg := messages.ToMessage(s)
 
-	if cmd == nil {
+	if msg == nil {
 		fmt.Println("NULL: ", fmt.Sprintf("%s\n%s\n%s\n", s[0], s[1], s[2]))
 		return
 	}
 
 	// call low level agent callback
-	if cmd.GetType() == commands.CommandTypeNew {
-		c.callback("a-cmd-new", cmd)
-	} else if cmd.GetType() == commands.CommandTypeConf {
-		c.callback("a-cmd-conf", cmd)
-	} else if cmd.GetType() == commands.CommandTypeInv {
-		c.callback("a-cmd-inv", cmd)
-	} else if cmd.GetType() == commands.CommandTypeError {
-		c.callback("a-cmd-err", cmd)
+	if msg.GetType() == messages.MessageTypeConf {
+		c.callback("a-msg-conf", msg)
+	} else if msg.GetType() == messages.MessageTypeInv {
+		c.callback("a-msg-inv", msg)
+	} else if msg.GetType() == messages.MessageTypeError {
+		c.callback("a-msg-err", msg)
 	}
 }
 
@@ -107,19 +103,19 @@ func (c *Client) Run() error {
 		s := bufio.NewScanner(c.reader)
 
 		count := 0 // count lines
-		var commandBuffer []string
+		var messageBuffer []string
 		for s.Scan() {
 			if !c.ready {
-				c.onMessage(s.Text())
+				c.waitForReady(s.Text())
 			} else {
-				commandBuffer = append(commandBuffer, strings.TrimSuffix(s.Text(), "\r"))
+				messageBuffer = append(messageBuffer, strings.TrimSuffix(s.Text(), "\r"))
 
 				count += 1
 
 				if count > 2 {
-					c.OnCommand(commandBuffer)
+					c.OnMessage(messageBuffer)
 					count = 0
-					commandBuffer = []string{}
+					messageBuffer = []string{}
 				}
 			}
 		}
@@ -146,7 +142,7 @@ func (c *Client) Run() error {
 	return c.command.Wait()
 }
 
-func (c *Client) onMessage(data string) {
+func (c *Client) waitForReady(data string) {
 	if data == "Welcome to SMP agent v5.4.0.5" {
 		c.ready = true
 		return

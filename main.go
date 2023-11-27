@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/jessehorne/go-simplex/pkg/v1/commands"
 	"github.com/jessehorne/go-simplex/pkg/v1/gosa"
+	"github.com/jessehorne/go-simplex/pkg/v1/messages"
 	"log"
 )
 
@@ -24,24 +24,19 @@ func main() {
 		fmt.Println("CALLBACK: agent-ready")
 	})
 
-	// when you get a NEW command from the agent...you shouldn't??
-	c.On("a-cmd-new", func(s string) {
-		fmt.Println("CALLBACK: a-cmd-new | COMMAND: ", s)
+	// when you get a CONF messages from the agent...
+	c.On("a-msg-conf", func(m messages.MessageConf) {
+		fmt.Println("CALLBACK: a-cmd-conf | MSG: ", m.SMPServerURI)
 	})
 
-	// when you get a CONF command from the agent...
-	c.On("a-cmd-conf", func(c commands.CommandConf) {
-		fmt.Println("CALLBACK: a-cmd-conf | COMMAND: ", c.SMPServerURI)
+	// when you get a INV messages from the agent...
+	c.On("a-msg-inv", func(m messages.MessageInv) {
+		fmt.Println("CALLBACK: a-cmd-inv | MSG: INV ", m.URI)
 	})
 
-	// when you get a INV command from the agent...
-	c.On("a-cmd-inv", func(c commands.CommandInv) {
-		fmt.Println("CALLBACK: a-cmd-inv | COMMAND: INV ", c.URI)
-	})
-
-	// when you get a ERR command from the agent...
-	c.On("a-cmd-err", func(c commands.CommandError) {
-		fmt.Println("CALLBACK: a-cmd-err | COMMAND: ", c.First, c.Second, c.Third)
+	// when you get a ERR messages from the agent...
+	c.On("a-msg-err", func(m messages.MessageError) {
+		fmt.Println("CALLBACK: a-cmd-err | MSG: ", m.First, m.Second, m.Third)
 	})
 
 	// run before closing down...on crash or ctrl-c
