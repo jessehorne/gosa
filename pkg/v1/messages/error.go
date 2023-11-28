@@ -7,13 +7,13 @@ import (
 )
 
 type MessageError struct {
-	First  string
-	Second string
-	Third  string
+	CorrID string
+	ConnID string
+	Msg    string
 }
 
 func (m MessageError) ToString() string {
-	return fmt.Sprintf("%s\n%s\n%s\n", m.First, m.Second, m.Third)
+	return fmt.Sprintf("%s\n%s\n%s\n", m.CorrID, m.ConnID, m.Msg)
 }
 
 func (m MessageError) GetType() int {
@@ -33,9 +33,9 @@ func MessageErrorParse(lines []string) (MessageError, error) {
 		return msg, errors.New("invalid error message: last line doesn't contain ERR")
 	}
 
-	msg.First = lines[0]
-	msg.Second = lines[1]
-	msg.Third = lines[2]
+	msg.CorrID = lines[0]
+	msg.ConnID = lines[1]
+	msg.Msg = lines[2]
 
 	return msg, nil
 }

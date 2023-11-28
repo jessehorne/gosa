@@ -10,9 +10,9 @@ import (
 
 type MessageConf struct {
 	ConnID       string
-	Key          string
+	ConfirmID    string
 	SMPServerURI string
-	Port         string
+	XInfoLength  string
 	XInfo        structs.XInfo
 }
 
@@ -24,7 +24,8 @@ func (m MessageConf) ToString() string {
 	if err != nil {
 		jsonData = []byte{}
 	}
-	return fmt.Sprintf("%s\nCONF %s %s %s\n%s\n", m.ConnID, m.Key, m.SMPServerURI, m.Port, jsonData)
+	return fmt.Sprintf("%s\nCONF %s %s %s\n%s\n",
+		m.ConnID, m.ConfirmID, m.SMPServerURI, m.XInfoLength, string(jsonData))
 }
 
 func (m MessageConf) GetType() int {
@@ -34,23 +35,27 @@ func (m MessageConf) GetType() int {
 func MessageConfParse(lines []string) (MessageConf, error) {
 	var msg MessageConf
 
-	if len(lines) != 3 {
+	if len(lines) != 4 {
 		return msg, errors.New("invalid CONF message from agent: invalid line count")
 	}
 
-	splitConf := strings.Split(lines[1], " ")
+	splitConf := strings.Split(lines[2], " ")
 
 	if len(splitConf) != 4 {
 		return msg, errors.New("invalid CONF message from agent")
 	}
 
-	msg.ConnID = lines[0]
-	msg.Key = splitConf[1]
+	if splitConf[0] != "CONF" {
+		return msg, errors.New("invalid CONF message from agent: not CONF command")
+	}
+
+	msg.ConnID = lines[1]
+	msg.ConfirmID = splitConf[1]
 	msg.SMPServerURI = splitConf[2]
-	msg.Port = splitConf[3]
+	msg.XInfoLength = splitConf[3]
 
 	var x structs.XInfo
-	err := json.Unmarshal([]byte(lines[2]), &x)
+	err := json.Unmarshal([]byte(lines[3]), &x)
 	if err != nil {
 		return msg, errors.New("couldn't unmarshal CONF agent XInfo data")
 	}

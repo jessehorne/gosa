@@ -60,6 +60,12 @@ func (i *XInfo) ToString() string {
 	return string(jsonData)
 }
 
+func XInfoFromString(x string) XInfo {
+	i := NewDefaultXInfo()
+	json.Unmarshal([]byte(x), &i)
+	return i
+}
+
 func NewDefaultXInfo() XInfo {
 	return XInfo{
 		V:     "1-4",

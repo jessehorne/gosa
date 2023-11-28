@@ -3,6 +3,7 @@ package messages
 const (
 	MessageTypeConf = iota
 	MessageTypeInv
+	MessageTypeInfo
 	MessageTypeError
 )
 
@@ -20,6 +21,11 @@ func ToMessage(s []string) Message {
 	msgInv, err := MessageInvParse(s)
 	if err == nil {
 		return msgInv
+	}
+
+	msgInfo, err := MessageInfoParse(s)
+	if err == nil {
+		return msgInfo
 	}
 
 	msgErr, err := MessageErrorParse(s)

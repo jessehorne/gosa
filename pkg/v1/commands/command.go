@@ -3,9 +3,7 @@ package commands
 const (
 	CommandTypeNew = iota
 	CommandTypeJoin
-	CommandTypeConf
-	CommandTypeInv
-	CommandTypeError
+	CommandTypeLet
 )
 
 type Command interface {

@@ -3,9 +3,7 @@ package gosa
 import (
 	"bufio"
 	"fmt"
-	"github.com/jessehorne/go-simplex/pkg/v1/commands"
 	"github.com/jessehorne/go-simplex/pkg/v1/messages"
-	"github.com/jessehorne/go-simplex/pkg/v1/structs"
 	"io"
 	"os"
 	"os/exec"
@@ -25,7 +23,8 @@ type Client struct {
 	ready               bool
 	running             bool
 
-	callbacks map[string]interface{}
+	callbacks   map[string]interface{}
+	connections map[string]*Connection
 }
 
 func NewClient(addr string, port string) (*Client, error) {
@@ -52,11 +51,79 @@ func NewClient(addr string, port string) (*Client, error) {
 		command:        cmd,
 		commandTimeout: 5,
 
-		running:   true,
-		callbacks: map[string]interface{}{},
+		running:     true,
+		callbacks:   map[string]interface{}{},
+		connections: map[string]*Connection{},
 	}
 
+	client.registerCallbacks()
+
 	return client, nil
+}
+
+func (c *Client) registerCallbacks() {
+	// when gosa connects to the agent
+	c.On("agent-connect", func() {
+		fmt.Println("CALLBACK: agent-connect")
+	})
+
+	// when gosa is ready to take in messages from agent
+	c.On("agent-ready", func() {
+		fmt.Println("CALLBACK: agent-ready")
+	})
+
+	// when gosa gets CONF message from agent
+	c.On("a-msg-conf", func(m messages.MessageConf) {
+		conn, ok := c.connections[m.ConnID]
+		if ok {
+			conn.Callback("user-joined", map[string]string{
+				"confirm": m.ConfirmID,
+				"server":  m.SMPServerURI,
+				"xinfo":   m.XInfo.ToString(),
+			})
+		}
+	})
+
+	// when gosa gets INV message from agent
+	c.On("a-msg-inv", func(m messages.MessageInv) {
+		conn, ok := c.connections[m.ConnID]
+		if ok {
+			conn.Callback("connection-ready", map[string]string{
+				"uri": m.URI,
+			})
+		}
+	})
+
+	// when gosa gets INFO message from agent
+	c.On("a-msg-info", func(m messages.MessageInfo) {
+		fmt.Println("GOT INFO", m.XInfo.ToString(), m.ConnID)
+		conn, ok := c.connections[m.ConnID]
+		if ok {
+			conn.Callback("connected", map[string]string{
+				"connID": m.ConnID,
+				"xinfo":  m.XInfo.ToString(),
+			})
+		}
+	})
+
+	// when gosa gets ERR message from agent
+	c.On("a-msg-err", func(m messages.MessageError) {
+		conn, ok := c.connections[m.ConnID]
+		if ok {
+			conn.Callback("error", map[string]string{
+				"msg": m.Msg,
+			})
+		}
+	})
+
+	// when the application is ctrl-c'd
+	c.On("close", func() {
+		fmt.Println("\nCALLBACK: close")
+	})
+}
+
+func (c *Client) registerConnection(conn *Connection) {
+	c.connections[conn.ConnID] = conn
 }
 
 func (c *Client) On(cb string, f interface{}) {
@@ -67,7 +134,6 @@ func (c *Client) OnMessage(s []string) {
 	msg := messages.ToMessage(s)
 
 	if msg == nil {
-		fmt.Println("NULL: ", fmt.Sprintf("%s\n%s\n%s\n", s[0], s[1], s[2]))
 		return
 	}
 
@@ -78,6 +144,8 @@ func (c *Client) OnMessage(s []string) {
 		c.callback("a-msg-inv", msg)
 	} else if msg.GetType() == messages.MessageTypeError {
 		c.callback("a-msg-err", msg)
+	} else if msg.GetType() == messages.MessageTypeInfo {
+		c.callback("a-msg-info", msg)
 	}
 }
 
@@ -89,15 +157,23 @@ func (c *Client) Run() error {
 		count := 0 // count lines
 		var messageBuffer []string
 		for s.Scan() {
-			fmt.Println(s.Text())
 			if !c.ready {
 				c.waitForReady(s.Text())
 			} else {
+				//fmt.Println("DEBUG: ", s.Text())
 				messageBuffer = append(messageBuffer, strings.TrimSuffix(s.Text(), "\r"))
 
 				count += 1
 
 				if count > 2 {
+					splitted := strings.Split(messageBuffer[2], " ")
+
+					if splitted[0] == "CONF" || splitted[0] == "INFO" {
+						// if CONF command, we expect one more line
+						s.Scan()
+						messageBuffer = append(messageBuffer, s.Text())
+					}
+
 					c.OnMessage(messageBuffer)
 					count = 0
 					messageBuffer = []string{}
@@ -134,17 +210,6 @@ func (c *Client) Close() {
 	c.reader.Close()
 }
 
-func (c *Client) NewConnection(corrID, connID, connType string) {
-	cmd := commands.NewCommandNew(corrID, connID, connType)
-	c.send(cmd.ToString())
-}
-
-func (c *Client) JoinConnection(corrID, connID, uri string, i structs.XInfo) {
-	cmd := commands.NewCommandJoin(corrID, connID, uri, i)
-	fmt.Println(cmd.ToString())
-	c.send(cmd.ToString())
-}
-
 func (c *Client) waitForReady(data string) {
 	if data == "Welcome to SMP agent v5.4.0.5" {
 		c.ready = true
@@ -169,6 +234,8 @@ func (c *Client) callback(name string, data messages.Message) {
 			cb.(func(messages.MessageInv))(data.(messages.MessageInv))
 		} else if name == "a-msg-err" {
 			cb.(func(messages.MessageError))(data.(messages.MessageError))
+		} else if name == "a-msg-info" {
+			cb.(func(messages.MessageInfo))(data.(messages.MessageInfo))
 		}
 	}
 }
