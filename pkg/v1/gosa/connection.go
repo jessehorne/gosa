@@ -1,6 +1,7 @@
 package gosa
 
 import (
+	"fmt"
 	"github.com/jessehorne/go-simplex/pkg/v1/commands"
 	"github.com/jessehorne/go-simplex/pkg/v1/structs"
 )
@@ -28,6 +29,7 @@ type Connection struct {
 	Callbacks map[string]func(map[string]string)
 	Users     map[string]*User
 	XInfo     structs.XInfo
+	Messages  map[string]*Msg
 }
 
 func NewConnection(c *Client, connType string) *Connection {
@@ -38,6 +40,7 @@ func NewConnection(c *Client, connType string) *Connection {
 		Callbacks: map[string]func(map[string]string){},
 		Users:     map[string]*User{},
 		XInfo:     structs.NewDefaultXInfo(),
+		Messages:  map[string]*Msg{},
 	}
 }
 
@@ -52,6 +55,7 @@ func JoinConnection(c *Client, connType, corrID, connID, uri string, i structs.X
 		CorrID:    corrID,
 		ConnID:    connID,
 		URI:       uri,
+		Messages:  map[string]*Msg{},
 	}
 
 	cmd := commands.NewCommandJoin(corrID, connID, uri, i)
@@ -60,6 +64,20 @@ func JoinConnection(c *Client, connType, corrID, connID, uri string, i structs.X
 	c.registerConnection(conn)
 
 	return conn
+}
+
+func (c *Connection) SendMessage(content string) *Msg {
+	m := NewMsg(c.CorrID, c.ConnID, content)
+	c.Messages[m.Message.MsgID] = m
+	c.Client.send(m.Cmd.ToString())
+
+	return m
+}
+
+func (c *Connection) AckMessage(msgID string) {
+	cmd := commands.NewCommandAck(c.CorrID, c.ConnID, msgID)
+	fmt.Println(cmd.ToString())
+	c.Client.send(cmd.ToString())
 }
 
 func (c *Connection) Create(corrID, connID string) {
@@ -85,8 +103,9 @@ func (c *Connection) Callback(name string, data map[string]string) {
 	}
 }
 
-func (c *Connection) AllowConnection(confirmID, uri, info string) {
+func (c *Connection) AllowConnection(confirmID, uri string, info structs.XInfo) {
 	// add user to connections list of users
+	fmt.Println("CREATING USER", confirmID, info)
 	c.Users[confirmID] = NewUser(confirmID, uri, info)
 
 	if c.Type == ConnectionTypeOne {

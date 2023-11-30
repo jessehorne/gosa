@@ -59,6 +59,7 @@ func MessageConfParse(lines []string) (MessageConf, error) {
 	if err != nil {
 		return msg, errors.New("couldn't unmarshal CONF agent XInfo data")
 	}
+	msg.XInfo = x
 
 	return msg, nil
 }

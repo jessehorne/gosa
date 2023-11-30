@@ -5,6 +5,7 @@ const (
 	MessageTypeInv
 	MessageTypeInfo
 	MessageTypeError
+	MessageTypeMsg
 )
 
 type Message interface {
@@ -13,6 +14,11 @@ type Message interface {
 }
 
 func ToMessage(s []string) Message {
+	msgMsg, err := MessageMsgParse(s)
+	if err == nil {
+		return msgMsg
+	}
+
 	msgConf, err := MessageConfParse(s)
 	if err == nil {
 		return msgConf

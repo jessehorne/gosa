@@ -8,10 +8,10 @@ type User struct {
 	XInfo        structs.XInfo
 }
 
-func NewUser(confirmID, uri, xinfo string) *User {
+func NewUser(confirmID, uri string, xinfo structs.XInfo) *User {
 	return &User{
 		ConfirmID:    confirmID,
 		SMPServerURI: uri,
-		XInfo:        structs.XInfoFromString(xinfo),
+		XInfo:        xinfo,
 	}
 }

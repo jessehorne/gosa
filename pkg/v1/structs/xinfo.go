@@ -1,6 +1,9 @@
 package structs
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type XInfoParams struct {
 	Profile XInfoProfile `json:"profile"`
@@ -49,20 +52,19 @@ type XInfo struct {
 }
 
 func (i *XInfo) ToString() string {
-	var jsonData []byte
-	var err error
-
-	jsonData, err = json.Marshal(i)
+	jsonData, err := json.Marshal(i)
 	if err != nil {
 		jsonData = []byte("{}")
 	}
-
 	return string(jsonData)
 }
 
 func XInfoFromString(x string) XInfo {
 	i := NewDefaultXInfo()
-	json.Unmarshal([]byte(x), &i)
+	err := json.Unmarshal([]byte(x), &i)
+	if err != nil {
+		fmt.Println("ERROR UNMARSHING JSON: ", err)
+	}
 	return i
 }
 

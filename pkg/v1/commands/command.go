@@ -4,6 +4,9 @@ const (
 	CommandTypeNew = iota
 	CommandTypeJoin
 	CommandTypeLet
+	CommandTypeSend
+	CommandTypeAccept
+	CommandTypeAck
 )
 
 type Command interface {

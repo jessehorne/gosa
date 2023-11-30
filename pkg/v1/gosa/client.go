@@ -116,6 +116,21 @@ func (c *Client) registerCallbacks() {
 		}
 	})
 
+	// when gosa gets MSG message from agent
+	c.On("a-msg-msg", func(m messages.MessageMsg) {
+		conn, ok := c.connections[m.ConnID]
+		if ok {
+			conn.Callback("message", map[string]string{
+				"connID":  m.ConnID,
+				"type":    m.Type,
+				"R":       m.R,
+				"B":       m.B,
+				"S":       m.S,
+				"content": m.Content,
+			})
+		}
+	})
+
 	// when the application is ctrl-c'd
 	c.On("close", func() {
 		fmt.Println("\nCALLBACK: close")
@@ -146,6 +161,8 @@ func (c *Client) OnMessage(s []string) {
 		c.callback("a-msg-err", msg)
 	} else if msg.GetType() == messages.MessageTypeInfo {
 		c.callback("a-msg-info", msg)
+	} else if msg.GetType() == messages.MessageTypeMsg {
+		c.callback("a-msg-msg", msg)
 	}
 }
 
@@ -160,7 +177,7 @@ func (c *Client) Run() error {
 			if !c.ready {
 				c.waitForReady(s.Text())
 			} else {
-				//fmt.Println("DEBUG: ", s.Text())
+				fmt.Println("DEBUG: ", s.Text())
 				messageBuffer = append(messageBuffer, strings.TrimSuffix(s.Text(), "\r"))
 
 				count += 1

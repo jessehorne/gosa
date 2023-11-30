@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/jessehorne/go-simplex/pkg/v1/gosa"
+	"github.com/jessehorne/go-simplex/pkg/v1/structs"
 	"log"
 )
 
@@ -19,7 +20,7 @@ func main() {
 	// CorrID: 1
 	// ConnID: bob
 	conn := gosa.NewConnection(c, gosa.ConnectionTypeOne)
-	conn.Create("1", "bob")
+	conn.Create("1", "dockViaGosa")
 	conn.XInfo.Params.Profile.DisplayName = "bob"
 
 	// called when the connection is ready for users to connect to it
@@ -40,7 +41,21 @@ func main() {
 	// }
 	conn.On("user-joined", func(d map[string]string) {
 		fmt.Println("USER JOINED: ", d)
-		conn.AllowConnection(d["confirm"], d["serverURI"], d["xinfo"])
+		conn.AllowConnection(d["confirm"], d["serverURI"], structs.XInfoFromString(d["xinfo"]))
+
+		//go func() {
+		//	time.Sleep(5 * time.Second)
+		//	for x := 0; x < 10; x++ {
+		//		conn.SendMessage("hello from bob " + string(x))
+		//		time.Sleep(3 * time.Second)
+		//	}
+		//}()
+	})
+
+	conn.On("message", func(d map[string]string) {
+		// ack message so that you can get next ones :-)
+		fmt.Println("RECEIVED MSG: ", d["msgId"], d["content"])
+		conn.AckMessage(d["msgId"])
 	})
 
 	// called when gosa receives any error from the agent
